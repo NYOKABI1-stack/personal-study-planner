@@ -2,7 +2,7 @@
 // Pure scheduling logic — no DOM, no storage. Tested in src/test/planner.test.ts.
 export type Weight = "light" | "normal" | "heavy";
 export type Phase = "learn" | "practice" | "review" | "mock" | "recap";
-export interface Topic { id: string; name: string; confidence: number; weight: Weight }
+export interface Topic { id: string; name: string; confidence: number; weight: Weight; group?: string }
 export interface PlanInput {
   examName: string;
   examDate: string; // YYYY-MM-DD
@@ -159,7 +159,7 @@ export function buildPlan(input: PlanInput): Plan {
   for (const i of studyIdx) {
     const d = days[i];
     if (mockDays.has(i)) {
-      d.sessions.push({ id: "", phase: "mock", topicId: null, label: `Timed mock paper${input.examName ? ` · ${input.examName}` : ""}`, minutes: mockSlots(i) * len });
+      d.sessions.push({ id: "", phase: "mock", topicId: null, label: `Timed mock exam${input.examName ? ` · ${input.examName}` : ""}`, minutes: mockSlots(i) * len });
     }
     const n = slots[i] - (mockDays.has(i) ? mockSlots(i) : 0);
     for (let k = 0; k < n; k++, p++) {
