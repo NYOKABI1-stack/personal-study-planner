@@ -1,5 +1,12 @@
 import { createFileRoute, useHydrated } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Button } from "@/components/ui/button";
+import { useAccount } from "@/hooks/use-account";
+import { savedPlanSchema } from "@/lib/account-validation";
+import { getStudyPlan, saveStudyPlan } from "@/lib/study-plan.functions";
 import { buildPlan, planAsText, type Day, type Phase, type PlanInput, type Topic, type Weight } from "@/lib/planner";
 
 export const Route = createFileRoute("/")({
@@ -67,27 +74,62 @@ function example(today: string): PlanInput {
 interface Saved { input: PlanInput; done: Record<string, boolean>; isExample: boolean }
 
 function Index() {
+  const { user, loading } = useAccount();
+  if (loading) return <main className="p-8 font-display text-2xl">Opening your notebook…</main>;
+  return <AccountPlanner key={user?.id ?? "guest"} userId={user?.id ?? null} />;
+}
+
+function AccountPlanner({ userId }: { userId: string | null }) {
   const hydrated = useHydrated();
   const [state, setState] = useState<Saved | null>(null);
   const [today, setToday] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+  const fetchPlan = useServerFn(getStudyPlan);
+  const persistPlan = useServerFn(saveStudyPlan);
+  const queue = useRef(Promise.resolve());
+  const active = useRef(true);
+  const loaded = useRef(false);
+  const personal = useQuery({ queryKey: ["study-plan", userId], queryFn: () => fetchPlan(), enabled: Boolean(userId), retry: 1 });
+
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
 
   useEffect(() => {
+    if (loaded.current || (userId && !personal.isSuccess)) return;
     const t = iso(new Date());
     setToday(t);
     let s: Saved | null = null;
-    try { const raw = localStorage.getItem(KEY); if (raw) s = JSON.parse(raw); } catch { s = null; }
+    if (userId) s = personal.data ?? null;
+    else {
+      try { const raw = localStorage.getItem(KEY); if (raw) { const parsed = savedPlanSchema.safeParse(JSON.parse(raw)); if (parsed.success) s = parsed.data; } } catch { s = null; }
+    }
+    loaded.current = true;
     setState(s && s.input ? s : { input: example(t), done: {}, isExample: true });
-  }, []);
+  }, [userId, personal.isSuccess, personal.data]);
   useEffect(() => {
     if (!state) return;
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* storage blocked */ }
-  }, [state]);
+    if (!userId) {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); setSaveMessage("Plan saved on this device only."); }
+      catch { setSaveMessage("Device storage is unavailable. Your plan will be lost when you leave this page."); }
+      return;
+    }
+    const valid = savedPlanSchema.safeParse(state);
+    if (!valid.success) { setSaveMessage("Complete valid dates and inputs to save your plan."); return; }
+    setSaveMessage("Saving your personal plan…");
+    // Serialize writes so rapid edits cannot save an older plan over a newer one.
+    queue.current = queue.current.then(async () => {
+      if (!active.current) return;
+      try { await persistPlan({ data: valid.data }); if (active.current) setSaveMessage("Personal plan saved to your account."); }
+      catch { if (active.current) setSaveMessage("Could not save your plan. Keep this page open and try again."); }
+    });
+  }, [state, userId, persistPlan]);
 
+  if (personal.isError && userId) return <main className="mx-auto max-w-6xl px-4 py-8"><h1 tabIndex={-1} className="font-display text-3xl">Your plan could not be loaded.</h1><p role="alert" className="mt-3">Check your connection, then try again. Your saved plan has not been overwritten.</p><Button className="mt-4" onClick={() => personal.refetch()}>Try again</Button></main>;
   if (!hydrated || !state) return <main className="p-8 font-display text-2xl">Sharpening pencils…</main>;
-  return <Planner state={state} setState={(f) => setState((s) => (s ? f(s) : s))} today={today} />;
+  return <Planner state={state} setState={(f) => setState((s) => (s ? f(s) : s))} today={today} saveMessage={saveMessage} retry={() => setState((s) => s ? { ...s } : s)} />;
 }
 
-function Planner({ state, setState, today }: { state: Saved; setState: (f: (s: Saved) => Saved) => void; today: string }) {
+function Planner({ state, setState, today, saveMessage, retry }: { state: Saved; setState: (f: (s: Saved) => Saved) => void; today: string; saveMessage: string; retry: () => void }) {
+  const { user, displayName } = useAccount();
   const { input, done } = state;
   const plan = useMemo(() => buildPlan(input), [input]);
   const set = (p: Partial<PlanInput>) => setState((s) => ({ ...s, input: { ...s.input, ...p } }));
@@ -101,7 +143,10 @@ function Planner({ state, setState, today }: { state: Saved; setState: (f: (s: S
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-8">
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Azure Fundamentals · runway to exam day</p>
-        <h1 className="font-display text-4xl font-extrabold leading-none sm:text-6xl">AZ-900 Study Planner<span className="text-review">.</span></h1>
+        <h1 tabIndex={-1} className="font-display text-4xl font-extrabold leading-none sm:text-6xl">AZ-900 Study Planner<span className="text-review">.</span></h1>
+        <p className="mt-4 text-lg font-bold">{user ? `Welcome back, ${displayName}.` : "Welcome. Let’s make time for your AZ-900."}</p>
+        <p role="status" className="mt-1 text-sm text-muted-foreground">{saveMessage}</p>
+        {saveMessage.startsWith("Could not") && <Button variant="outline" className="mt-2" onClick={retry}>Try saving again</Button>}
         <p className="mt-2 max-w-2xl text-muted-foreground">Set your exam date, your free hours and how confident you feel on each skill area. You get a plan with your weakest topics first, spaced review and timed mock exams near the end.</p>
         <p className="mt-2 max-w-2xl text-xs text-muted-foreground">{DISCLAIMER} <a className="underline" href={STUDY_GUIDE} target="_blank" rel="noreferrer">Official study guide on Microsoft Learn</a>.</p>
       </header>
@@ -163,7 +208,7 @@ function InputsPanel({ input, set, setTopic, onEdit }: { input: PlanInput; set: 
               {d}
               <input type="number" min={0} max={16} step={0.5} inputMode="decimal" aria-label={`Hours on ${d}`}
                 value={input.weeklyHours[i]} className="px-0.5 text-center font-mono"
-                onChange={(e) => { const w = [...input.weeklyHours]; w[i] = Math.max(0, Number(e.target.value) || 0); set({ weeklyHours: w }); }} />
+                onChange={(e) => { const w = [...input.weeklyHours]; w[i] = Math.min(16, Math.max(0, Number(e.target.value) || 0)); set({ weeklyHours: w }); }} />
             </label>
           ))}
         </div>
@@ -191,7 +236,7 @@ function InputsPanel({ input, set, setTopic, onEdit }: { input: PlanInput; set: 
               {input.topics.map((t, i) => (t.group || "Your own topics") !== g ? null : (
                 <li key={t.id} className="space-y-2 border-b border-dashed pb-3">
                   <div className="flex gap-2">
-                    <input aria-label={`Topic ${i + 1} name`} value={t.name} placeholder="Topic name" className="flex-1" onChange={(e) => setTopic(t.id, { name: e.target.value })} />
+                    <input aria-label={`Topic ${i + 1} name`} maxLength={300} value={t.name} placeholder="Topic name" className="flex-1" onChange={(e) => setTopic(t.id, { name: e.target.value })} />
                     <button type="button" className="btn px-2" aria-label={`Remove ${t.name || `topic ${i + 1}`}`} onClick={() => { onEdit(); set({ topics: input.topics.filter((x) => x.id !== t.id) }); }}>✕</button>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -210,7 +255,7 @@ function InputsPanel({ input, set, setTopic, onEdit }: { input: PlanInput; set: 
             </ul>
           </div>
         ))}
-        <button type="button" className="btn mt-1" onClick={() => { onEdit(); set({ topics: [...input.topics, { id: uid(), name: "", confidence: 3, weight: "normal" }] }); }}>+ Add your own topic</button>
+        <Button type="button" disabled={input.topics.length >= 100} variant="outline" className="btn mt-1" onClick={() => { onEdit(); set({ topics: [...input.topics, { id: uid(), name: "", confidence: 3, weight: "normal" }] }); }}>+ Add your own topic</Button>
       </fieldset>
     </section>
   );
