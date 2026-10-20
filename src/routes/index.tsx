@@ -58,8 +58,8 @@ function example(today: string): PlanInput {
     examName: "AZ-900",
     startDate: today,
     examDate: addDays(today, 35),
-    weeklyHours: [1, 1, 1.5, 1, 1, 3, 0],
-    sessionMinutes: 45,
+    weeklyHours: [1.5, 1.5, 1.5, 1.5, 1, 3, 0],
+    sessionMinutes: 30,
     topics: AZ_TOPICS.map(([group, name, weight, confidence], i) => ({ id: `az${i}`, group, name, weight, confidence })),
   };
 }
