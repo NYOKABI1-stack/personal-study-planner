@@ -5,10 +5,10 @@ import { buildPlan, planAsText, type Day, type Phase, type PlanInput, type Topic
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Runway — Personal Study Plan Builder" },
-      { name: "description", content: "Turn your exam date, free hours and weak topics into a day-by-day study plan with spaced review and mock papers." },
-      { property: "og:title", content: "Runway — Personal Study Plan Builder" },
-      { property: "og:description", content: "A day-by-day study plan built from your exam date, hours and weak areas." },
+      { title: "AZ-900 Study Planner — Azure Fundamentals Study Plan" },
+      { name: "description", content: "Unofficial community tool: build a personalised AZ-900 study plan from your exam date, free hours and weak topics." },
+      { property: "og:title", content: "AZ-900 Study Planner" },
+      { property: "og:description", content: "A day-by-day Azure Fundamentals study plan with spaced review and mock exams. Unofficial, not affiliated with Microsoft." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -19,27 +19,48 @@ export const Route = createFileRoute("/")({
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const PHASE_LABEL: Record<Phase, string> = { learn: "Learn", practice: "Practice", review: "Review", mock: "Mock", recap: "Recap" };
 const PHASE_BG: Record<Phase, string> = { learn: "bg-learn", practice: "bg-practice", review: "bg-review", mock: "bg-mock", recap: "bg-recap" };
-const KEY = "runway-planner-v1";
+const GUIDE: Record<Phase, string> = {
+  learn: "Work through the matching Microsoft Learn module, then write a one-line definition of each service from memory.",
+  practice: "Answer practice questions on the topic and log every mistake.",
+  review: "Recall from memory, then redo the questions you got wrong.",
+  mock: "A full timed practice test with no notes.",
+  recap: "Light recall only — skim your mistake log and one-line definitions.",
+};
+const DISCLAIMER = "Unofficial community tool — not affiliated with or endorsed by Microsoft.";
+const STUDY_GUIDE = "https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/az-900";
+const KEY = "az900-planner-v1";
 
 const iso = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 const addDays = (s: string, n: number) => { const d = new Date(s + "T00:00:00"); d.setDate(d.getDate() + n); return iso(d); };
 const hm = (m: number) => { const h = Math.floor(m / 60), r = m % 60; return h ? `${h}h${r ? String(r).padStart(2, "0") : ""}` : `${r}m`; };
 const uid = () => Math.random().toString(36).slice(2, 9);
 
+const G1 = "1 · Describe cloud concepts", G2 = "2 · Azure architecture and services", G3 = "3 · Azure management and governance";
+const AZ_TOPICS: [string, string, Weight, number][] = [
+  [G1, "Cloud computing & shared responsibility model", "light", 4],
+  [G1, "Public, private & hybrid cloud; consumption-based pricing", "light", 4],
+  [G1, "IaaS, PaaS & SaaS", "light", 3],
+  [G1, "High availability, scalability, elasticity & reliability", "light", 3],
+  [G2, "Regions, availability zones, resource groups, subscriptions & management groups", "heavy", 2],
+  [G2, "Compute: VMs, App Service, containers, Functions", "heavy", 2],
+  [G2, "Networking: virtual networks, VPN Gateway, ExpressRoute, DNS", "heavy", 1],
+  [G2, "Storage: blob, files, redundancy options & tiers", "heavy", 2],
+  [G2, "Databases", "heavy", 3],
+  [G2, "Identity & security: Entra ID, MFA, conditional access, RBAC, Zero Trust, defence in depth", "heavy", 1],
+  [G3, "Cost management: pricing & TCO calculators, tags", "normal", 3],
+  [G3, "Governance: Azure Policy, resource locks, Purview, Service Trust Portal", "normal", 2],
+  [G3, "Management tools: portal, CLI, PowerShell, Cloud Shell, Arc, ARM templates", "normal", 3],
+  [G3, "Monitoring: Advisor, Service Health, Azure Monitor", "normal", 2],
+];
+
 function example(today: string): PlanInput {
   return {
-    examName: "A-level Chemistry",
+    examName: "AZ-900",
     startDate: today,
-    examDate: addDays(today, 42),
-    weeklyHours: [1.5, 1.5, 2, 1.5, 1, 3, 0],
-    sessionMinutes: 45,
-    topics: [
-      { id: "t1", name: "Organic mechanisms", confidence: 1, weight: "heavy" },
-      { id: "t2", name: "Thermodynamics", confidence: 2, weight: "normal" },
-      { id: "t3", name: "Equilibria & pH", confidence: 3, weight: "heavy" },
-      { id: "t4", name: "Transition metals", confidence: 3, weight: "light" },
-      { id: "t5", name: "Atomic structure", confidence: 5, weight: "normal" },
-    ],
+    examDate: addDays(today, 35),
+    weeklyHours: [1.5, 1.5, 1.5, 1.5, 1, 3, 0],
+    sessionMinutes: 30,
+    topics: AZ_TOPICS.map(([group, name, weight, confidence], i) => ({ id: `az${i}`, group, name, weight, confidence })),
   };
 }
 
@@ -79,15 +100,16 @@ function Planner({ state, setState, today }: { state: Saved; setState: (f: (s: S
   return (
     <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <header className="mb-8">
-        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Study planner · runway to exam day</p>
-        <h1 className="font-display text-5xl font-extrabold leading-none sm:text-6xl">Runway<span className="text-review">.</span></h1>
-        <p className="mt-2 max-w-xl text-muted-foreground">Tell it when, how long and what scares you. It builds the plan — weakest topics first, spaced review, mock papers near the end.</p>
+        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">Azure Fundamentals · runway to exam day</p>
+        <h1 className="font-display text-4xl font-extrabold leading-none sm:text-6xl">AZ-900 Study Planner<span className="text-review">.</span></h1>
+        <p className="mt-2 max-w-2xl text-muted-foreground">Set your exam date, your free hours and how confident you feel on each skill area. You get a plan with your weakest topics first, spaced review and timed mock exams near the end.</p>
+        <p className="mt-2 max-w-2xl text-xs text-muted-foreground">{DISCLAIMER} <a className="underline" href={STUDY_GUIDE} target="_blank" rel="noreferrer">Official study guide on Microsoft Learn</a>.</p>
       </header>
 
       {state.isExample && (
         <div role="status" className="sheet mb-6 flex flex-wrap items-center justify-between gap-3 bg-highlight p-3">
-          <span><strong>Example data</strong> — a sample chemistry plan. Edit anything, or start blank.</span>
-          <button className="btn" onClick={() => setState(() => ({ isExample: false, done: {}, input: { examName: "", startDate: today, examDate: addDays(today, 28), weeklyHours: [1, 1, 1, 1, 1, 2, 0], sessionMinutes: 45, topics: [{ id: uid(), name: "", confidence: 3, weight: "normal" }] } }))}>Clear example</button>
+          <span><strong>Example starting point</strong> — the AZ-900 topics with sample confidence ratings. Adjust them to you, or start blank.</span>
+          <button className="btn" onClick={() => setState(() => ({ isExample: false, done: {}, input: { examName: "AZ-900", startDate: today, examDate: addDays(today, 28), weeklyHours: [1, 1, 1, 1, 1, 2, 0], sessionMinutes: 45, topics: [{ id: uid(), name: "", confidence: 3, weight: "normal" }] } }))}>Clear example</button>
         </div>
       )}
 
@@ -112,6 +134,7 @@ function Planner({ state, setState, today }: { state: Saved; setState: (f: (s: S
           )}
         </div>
       </div>
+      <Footer />
     </main>
   );
 }
@@ -122,9 +145,6 @@ function InputsPanel({ input, set, setTopic, onEdit }: { input: PlanInput; set: 
     <section aria-labelledby="inputs-h" className="sheet h-fit space-y-5 p-4 lg:sticky lg:top-4" onChange={onEdit}>
       <h2 id="inputs-h" className="font-display text-2xl font-semibold">Your inputs</h2>
       <div className="grid gap-3">
-        <label className="grid gap-1 text-sm font-bold">Exam name
-          <input value={input.examName} onChange={(e) => set({ examName: e.target.value })} placeholder="e.g. Biology final" className="font-normal" />
-        </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="grid gap-1 text-sm font-bold">Start date
             <input type="date" value={input.startDate} onChange={(e) => set({ startDate: e.target.value })} className="font-mono font-normal" />
@@ -163,28 +183,34 @@ function InputsPanel({ input, set, setTopic, onEdit }: { input: PlanInput; set: 
 
       <fieldset>
         <legend className="mb-2 text-sm font-bold">Topics <span className="font-normal text-muted-foreground">— confidence 1 shaky · 5 strong</span></legend>
-        <ul className="space-y-3">
-          {input.topics.map((t, i) => (
-            <li key={t.id} className="space-y-2 border-b border-dashed pb-3">
-              <div className="flex gap-2">
-                <input aria-label={`Topic ${i + 1} name`} value={t.name} placeholder="Topic name" className="flex-1" onChange={(e) => setTopic(t.id, { name: e.target.value })} />
-                <button type="button" className="btn px-2" aria-label={`Remove ${t.name || `topic ${i + 1}`}`} onClick={() => { onEdit(); set({ topics: input.topics.filter((x) => x.id !== t.id) }); }}>✕</button>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 text-xs">
-                <label className="flex items-center gap-2">Confidence
-                  <input type="range" min={1} max={5} value={t.confidence} onChange={(e) => setTopic(t.id, { confidence: Number(e.target.value) })} className="w-24 border-0 p-0 accent-primary" />
-                  <span className="font-mono font-bold">{t.confidence}</span>
-                </label>
-                <label className="flex items-center gap-1">Weight
-                  <select value={t.weight} onChange={(e) => setTopic(t.id, { weight: e.target.value as Weight })} className="py-0.5">
-                    <option value="light">light</option><option value="normal">normal</option><option value="heavy">heavy</option>
-                  </select>
-                </label>
-              </div>
-            </li>
-          ))}
-        </ul>
-        <button type="button" className="btn mt-3" onClick={() => { onEdit(); set({ topics: [...input.topics, { id: uid(), name: "", confidence: 3, weight: "normal" }] }); }}>+ Add topic</button>
+        <p className="mb-2 text-xs text-muted-foreground">Weights are suggestions. Check the current percentages in the <a className="underline" href={STUDY_GUIDE} target="_blank" rel="noreferrer">official study guide</a> — they change between exam updates.</p>
+        {[...new Set(input.topics.map((t) => t.group || "Your own topics"))].map((g) => (
+          <div key={g} className="mb-3">
+            <h3 className="mb-2 font-display text-base font-semibold">{g}</h3>
+            <ul className="space-y-3">
+              {input.topics.map((t, i) => (t.group || "Your own topics") !== g ? null : (
+                <li key={t.id} className="space-y-2 border-b border-dashed pb-3">
+                  <div className="flex gap-2">
+                    <input aria-label={`Topic ${i + 1} name`} value={t.name} placeholder="Topic name" className="flex-1" onChange={(e) => setTopic(t.id, { name: e.target.value })} />
+                    <button type="button" className="btn px-2" aria-label={`Remove ${t.name || `topic ${i + 1}`}`} onClick={() => { onEdit(); set({ topics: input.topics.filter((x) => x.id !== t.id) }); }}>✕</button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs">
+                    <label className="flex items-center gap-2">Confidence
+                      <input type="range" min={1} max={5} value={t.confidence} onChange={(e) => setTopic(t.id, { confidence: Number(e.target.value) })} className="w-24 border-0 p-0 accent-primary" />
+                      <span className="font-mono font-bold">{t.confidence}</span>
+                    </label>
+                    <label className="flex items-center gap-1">Weight
+                      <select value={t.weight} onChange={(e) => setTopic(t.id, { weight: e.target.value as Weight })} className="py-0.5">
+                        <option value="light">light</option><option value="normal">normal</option><option value="heavy">heavy</option>
+                      </select>
+                    </label>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <button type="button" className="btn mt-1" onClick={() => { onEdit(); set({ topics: [...input.topics, { id: uid(), name: "", confidence: 3, weight: "normal" }] }); }}>+ Add your own topic</button>
       </fieldset>
     </section>
   );
@@ -195,7 +221,7 @@ function Summary({ plan }: { plan: ReturnType<typeof buildPlan> }) {
     ["Days to exam", String(plan.daysToExam)],
     ["Study time", hm(plan.totalMinutes)],
     ["Study days", String(plan.studyDays)],
-    ["Mock papers", String(plan.mocks)],
+    ["Mock exams", String(plan.mocks)],
   ];
   return (
     <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -353,7 +379,10 @@ function WeekPlan({ days, done, toggle, today, doneCount, total, input, plan }: 
                               <label className="flex cursor-pointer items-center gap-2 text-sm">
                                 <input type="checkbox" checked={!!done[s.id]} onChange={() => toggle(s.id)} className="h-4 w-4 shrink-0 accent-primary" />
                                 <span className={`shrink-0 border border-foreground px-1 font-mono text-[10px] uppercase ${PHASE_BG[s.phase]} text-foreground`}>{PHASE_LABEL[s.phase]}</span>
-                                <span className={`min-w-0 flex-1 truncate ${done[s.id] ? "text-muted-foreground line-through" : ""}`}>{s.label}</span>
+                                <span className={`min-w-0 flex-1 ${done[s.id] ? "text-muted-foreground line-through" : ""}`}>
+                                  <span className="block">{s.label}</span>
+                                  <span className="block text-xs text-muted-foreground">{GUIDE[s.phase]}</span>
+                                </span>
                                 <span className="shrink-0 font-mono text-xs">{hm(s.minutes)}</span>
                               </label>
                             </li>
@@ -376,7 +405,18 @@ function HowItWorks() {
   return (
     <section aria-labelledby="how-h" className="sheet p-4 text-sm leading-relaxed">
       <h2 id="how-h" className="mb-2 font-display text-xl font-semibold">How the plan is built</h2>
-      <p>Each topic gets a need score of <span className="font-mono">(6 − confidence) × weight</span> (light 0.5, normal 1, heavy 1.5), and time is shared by that score — a shaky topic gets about five times the time of a strong one. Your hours are cut into focus sessions and split into <b>Learn</b>, <b>Practice</b> and <b>Final review</b> (50/33/17 with 3+ weeks, shifting toward review when the exam is close). Learning starts with your weakest topics; practice and review rotate topics so each one comes back every few days. Up to three timed mock papers land in the second half, the day before the exam is halved into a light recap, and back-to-back sessions on the same topic are merged.</p>
+      <p>Each topic gets a need score of <span className="font-mono">(6 − confidence) × weight</span> (light 0.5, normal 1, heavy 1.5), and time is shared by that score — a shaky topic gets about five times the time of a strong one. Your hours are cut into focus sessions and split into <b>Learn</b>, <b>Practice</b> and <b>Final review</b> (50/33/17 with 3+ weeks, shifting toward review when the exam is close). Learning starts with your weakest topics; practice and review rotate topics so each one comes back every few days. Up to three timed mock exams land in the second half, the day before the exam is halved into a light recap, and back-to-back sessions on the same topic are merged.</p>
+      <ul className="mt-2 space-y-1">
+        {(["learn", "practice", "review", "mock"] as const).map((p) => <li key={p}><b>{PHASE_LABEL[p]}:</b> {GUIDE[p]}</li>)}
+      </ul>
     </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="mt-10 border-t-[1.5px] border-foreground pt-4 text-xs text-muted-foreground">
+      <p>{DISCLAIMER} For the official skills outline, current percentages and exam details, see the <a className="underline" href={STUDY_GUIDE} target="_blank" rel="noreferrer">Microsoft Learn AZ-900 study guide</a>.</p>
+    </footer>
   );
 }
