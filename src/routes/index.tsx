@@ -220,7 +220,7 @@ function Summary({ plan }: { plan: ReturnType<typeof buildPlan> }) {
     ["Days to exam", String(plan.daysToExam)],
     ["Study time", hm(plan.totalMinutes)],
     ["Study days", String(plan.studyDays)],
-    ["Mock papers", String(plan.mocks)],
+    ["Mock exams", String(plan.mocks)],
   ];
   return (
     <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
