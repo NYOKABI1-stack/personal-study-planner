@@ -134,6 +134,7 @@ function Planner({ state, setState, today }: { state: Saved; setState: (f: (s: S
           )}
         </div>
       </div>
+      <Footer />
     </main>
   );
 }
