@@ -63,7 +63,7 @@ function Index() {
   }, [state]);
 
   if (!hydrated || !state) return <main className="p-8 font-display text-2xl">Sharpening pencils…</main>;
-  return <Planner state={state} setState={setState} today={today} />;
+  return <Planner state={state} setState={(f) => setState((s) => (s ? f(s) : s))} today={today} />;
 }
 
 function Planner({ state, setState, today }: { state: Saved; setState: (f: (s: Saved) => Saved) => void; today: string }) {

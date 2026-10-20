@@ -21,7 +21,7 @@ describe("planner", () => {
   });
   it("weak topic gets ~5x the hours of a strong one", () => {
     const p = buildPlan(base);
-    const [a, b] = p.topicTotals.map((t) => t.learn + t.practice + t.review);
+    const [a = 0, b = 1] = p.topicTotals.map((t) => t.learn + t.practice + t.review);
     expect(a / b).toBeGreaterThan(4);
   });
   it("caps mocks at 3, marks exam, halves recap day", () => {
