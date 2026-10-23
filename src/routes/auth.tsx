@@ -63,12 +63,12 @@ function SignIn() {
     <p className="mt-3 text-muted-foreground">Keep your AZ-900 plan and completed sessions in your own account.</p>
     <label className="mt-6 flex items-center gap-2 font-bold"><input type="checkbox" checked={create} onChange={(event) => { setCreate(event.target.checked); setErrors({}); setMessage(""); }} />Create account</label>
     <form onSubmit={submit} noValidate className="mt-6 space-y-5">
-      {create && <Field name="displayName" label="Display name" value={displayName} change={setDisplayName} error={errors.displayName} autoComplete="nickname" maxLength={100} />}
-      <Field name="email" label="Email" type="email" value={email} change={setEmail} error={errors.email} autoComplete="email" maxLength={255} />
-      <Field name="password" label="Password" type="password" value={password} change={setPassword} error={errors.password} autoComplete={create ? "new-password" : "current-password"} maxLength={128} />
+      {create && <Field name="displayName" label="Display name" value={displayName} change={setDisplayName} error={errors["displayName"]} autoComplete="nickname" maxLength={100} />}
+      <Field name="email" label="Email" type="email" value={email} change={setEmail} error={errors["email"]} autoComplete="email" maxLength={255} />
+      <Field name="password" label="Password" type="password" value={password} change={setPassword} error={errors["password"]} autoComplete={create ? "new-password" : "current-password"} maxLength={128} />
       <p className="text-xs text-muted-foreground">At least 8 characters.</p>
-      {create && <Field name="confirmation" label="Confirm password" type="password" value={confirmation} change={setConfirmation} error={errors.confirmation} autoComplete="new-password" maxLength={128} />}
-      {errors.form && <p role="alert" className="text-sm text-destructive">{errors.form}</p>}
+      {create && <Field name="confirmation" label="Confirm password" type="password" value={confirmation} change={setConfirmation} error={errors["confirmation"]} autoComplete="new-password" maxLength={128} />}
+      {errors["form"] && <p role="alert" className="text-sm text-destructive">{errors["form"]}</p>}
       {message && <p role="status" className="border-l-4 border-learn pl-3 text-sm">{message}</p>}
       <Button type="submit" disabled={busy || loading} className="btn btn-primary h-auto">{busy ? "Please wait…" : create ? "Create account" : "Sign in"}</Button>
       {!create && <Button type="button" variant="link" disabled={busy} onClick={resetPassword}>Forgot password?</Button>}
@@ -78,6 +78,6 @@ function SignIn() {
   </main>;
 }
 
-function Field({ name, label, type = "text", value, change, error, autoComplete, maxLength }: { name: string; label: string; type?: string; value: string; change: (value: string) => void; error?: string; autoComplete: string; maxLength: number }) {
+function Field({ name, label, type = "text", value, change, error, autoComplete, maxLength }: { name: string; label: string; type?: string; value: string; change: (value: string) => void; error?: string | undefined; autoComplete: string; maxLength: number }) {
   return <div><label htmlFor={name} className="block text-sm font-bold">{label}</label><input id={name} name={name} type={type} value={value} onChange={(event) => change(event.target.value)} required maxLength={maxLength} autoComplete={autoComplete} aria-invalid={Boolean(error)} aria-describedby={error ? `${name}-error` : undefined} className="mt-1 w-full py-2" />{error && <p id={`${name}-error`} role="alert" className="mt-1 text-sm text-destructive">{error}</p>}</div>;
 }
