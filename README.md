@@ -1,5 +1,7 @@
 # Personal study planner
 
+The app turns your goals into a manageable weekly routine without causing burnout.
+
 Implement exactly the screenshot and nothing else
 
 This project was built with [Lovable](https://lovable.dev).
