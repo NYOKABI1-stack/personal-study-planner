@@ -130,3 +130,5 @@
 @utility btn-primary {
   background: var(--primary); color: var(--primary-foreground);
 }
+
+main h1:focus:not(:focus-visible){outline:none}
